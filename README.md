@@ -14,6 +14,20 @@ Features
 - Nice and easy use of CusrorAnnotation and HudMessageCustom
 - Other stuff i probably forgot (check tf2rputils.inc)
 
+Commands
+-----
+
+| Aliases | Flags | Description |
+|--|--|--|
+| sm_dropweapon sm_dropit |  | Drop the weapon you're currently holding |
+| sm_hands sm_holster |  | Put your weapons away and show hands |
+| sm_spawnweapon sm_spawngun | ADMFLAG_CHEATS | Create a weapon and drop it in the world - Only supports normal rarity items |
+| sm_resupply | ADMFLAG_CHEATS | <#userid\|name> - Regenerate yourself as if you used a resupply locker |
+| sm_give | ADMFLAG_CHEATS | <#userid\|name> <weapon> - Weapon is the item index or classname, tf_weapon_ is optional |
+| sm_fakegive | ADMFLAG_CHEATS | <#userid\|name> <weapon> - Pretends to give a weapon |
+| sm_god | ADMFLAG_ROOT | <#userid\|name> <1/0> - Enables or disables god mode on a player |
+| sm_hp | ADMFLAG_ROOT | <#userid\|name> <health\|'RESET'> ['MAX'\|'FIX'] - Sets health of a player, FIX will prevent overheal decay |
+
 ConVars
 -----
 
