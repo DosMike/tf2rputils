@@ -1,0 +1,88 @@
+"Phrases"
+{
+	"Command usage"
+	{
+		"#format" "{1:s},{2:s}"
+		"en"      "[SM] Usage: {1} {2}"
+	}
+	"action invalid player class"
+	{
+		"#format"	"{1:s}"
+		"en"	"The {1} can not use this weapon"
+	}
+	"action invalid while crouched"
+	{
+		"en"	"You may not do this while crouched"
+	}
+	"action invalid while moving"
+	{
+		"en"	"You may not do this while moving"
+	}
+	"class switch cooldown"
+	{
+		"en"	"Please slow down your class switching"
+	}
+	"command usage"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"	"Usage: {1} {2}"
+	}
+	"holster info"
+	{
+		"en"	"Your weapon is holstered until you /holster again or switch weapon"
+	}
+	"invalid weapon classname"
+	{
+		"#format"	"{1:s}"
+		"en"	"No weapon was found with weapon classname {1}"
+	}
+	"invalid weapon definition index"
+	{
+		"#format"	"{1:i}"
+		"en"	"No weapon was found with definition index {1}"
+	}
+	"no melee to holster"
+	{
+		"en"	"You do not hold any melee to holster"
+	}
+	"spawn weapon failed"
+	{
+		"#format"	"{1:s},{2:i},{3:N}"
+		"en"	"Failed to spawn weapon {1} ({2}) at {3}"
+	}
+	"Admin gave god mode to target"
+	{
+		"#format" "{1:N},{2:t}"
+		"en"      "{1} has given god mode to {2}."
+	}
+	"Admin removed god mode from target"
+	{
+		"#format" "{1:N},{2:t}"
+		"en"      "{1} has removed god mode from {2}."
+	}
+	"Admin gave weapon"
+	{
+		"#format" "{1:N},{2:s},{3:t}"
+		"en"      "{1} has given {2} to {3}."
+	}
+	"Admin set health of target"
+	{
+		"#format" "{1:N},{2:t},{3:s}"
+		"en"      "{1} has set the Health of {2} to {3}."
+	}
+	"Admin set health of target"
+	{
+		"#format" "{1:N},{2:t},{3:s}"
+		"en"      "{1} has set the max Health of {2} to {3}."
+	}
+	"Admin reset maxhealth of target"
+	{
+		"#format" "{1:N},{2:t}"
+		"en"      "{1} has removed max Health modifiers of {2}."
+	}
+	"Admin resupplied target"
+	{
+		"#format" "{1:N},{2:t}"
+		"en"      "{1} has resupplie {2}."
+	}
+}
