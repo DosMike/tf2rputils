@@ -71,11 +71,23 @@ forward void TF2rpu_OnClientPickupWeaponPost(int client, int weapon, int definit
 /**
  * Notifies you that a client wants to switch to a specific class.
  * Meant to be used for instant class switching, but can be used to block single classes.
+ * 
+ * This is fired from withing the class change command hooks. 
+ * Plugins can still assign arbitrary classes without triggering hooks!
+ * 
  * @param class unknown denotes a random class
  */
-forward Action TF2rpu_OnClientClassChange(int client, TFClassType& class);
+forward Action TF2rpu_OnClientClassChangePre(int client, TFClassType& class);
 /**
- * Specifically notifies you when the instant class change has finished
+ * Notifies that the player will now be assigned the new class, followed by a respawn.
+ * I require this notif to prepare some flags in the roleplay plugin.
+ * 
+ * Like pre, this is still fired from within the class change command hook.
+ */
+forward void TF2rpu_OnClientClassChange(int client, TFClassType class);
+/**
+ * Specifically notifies you one tick after the client respawned, that the class change is done.
+ * I again need this in the roleplay plugin to further process the changed class.
  */
 forward void TF2rpu_OnClientClassChangePost(int client, TFClassType class);
 
@@ -416,6 +428,14 @@ methodmap CursorAnnotation {
 	property int ParentEntity {
 		public native get();
 		public native set(int value);
+	}
+	
+	/** 
+	 * Tries to estimate whether this annotation is currently "delivered"/playing
+	 * using the annotations lifetime and the update/hide methods
+	 */
+	property bool IsPlaying { 
+		public native get();
 	}
 	/**
 	 * Update and show the annotation according to the currently set up data

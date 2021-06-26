@@ -47,7 +47,8 @@ GlobalForward gfwd_DroppedWeaponSpawn;
 GlobalForward gfwd_ClientDropWeaponPost;
 GlobalForward gfwd_ClientPickupWeaponCheck;
 GlobalForward gfwd_ClientPickupWeaponPost;
-GlobalForward gfwd_ClientClassChangeCheck;
+GlobalForward gfwd_ClientClassChangePre;
+GlobalForward gfwd_ClientClassChange;
 GlobalForward gfwd_ClientClassChangePost;
 
 // --== IMPLEMENTATION ==--
@@ -73,7 +74,7 @@ public Plugin myinfo = {
 	name = "[TF2] RP Utils",
 	author = "reBane",
 	description = "Library providing TF2 functions for my own (in)sanity",
-	version = "21w24a",
+	version = "21w25b",
 	url = "N/A"
 }
 
@@ -105,7 +106,8 @@ public void OnPluginStart() {
 	gfwd_ClientDropWeaponPost =    new GlobalForward("TF2rpu_OnClientDropWeaponPost", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
 	gfwd_ClientPickupWeaponCheck = new GlobalForward("TF2rpu_OnClientPickupWeapon", ET_Event, Param_Cell, Param_Cell, Param_Cell);
 	gfwd_ClientPickupWeaponPost =  new GlobalForward("TF2rpu_OnClientPickupWeaponPost", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
-	gfwd_ClientClassChangeCheck =  new GlobalForward("TF2rpu_OnClientClassChange", ET_Event, Param_Cell, Param_CellByRef);
+	gfwd_ClientClassChangePre =    new GlobalForward("TF2rpu_OnClientClassChangePre", ET_Event, Param_Cell, Param_CellByRef);
+	gfwd_ClientClassChange =       new GlobalForward("TF2rpu_OnClientClassChange", ET_Ignore, Param_Cell, Param_Cell);
 	gfwd_ClientClassChangePost =   new GlobalForward("TF2rpu_OnClientClassChangePost", ET_Ignore, Param_Cell, Param_Cell);
 	
 	AddCommandListener(commandDropItem, "dropitem");
@@ -146,6 +148,11 @@ public void OnPluginEnd() {
 	}
 }
 
+public void OnMapStart() {
+	updateAnnotationsMapchange();
+}
+
+
 public void OnGameFrame() {
 	_TF2rpu_thinkOverheal();
 }
@@ -161,7 +168,7 @@ public void OnClientDisconnect(int client) {
 
 public void OnEntityCreated(int entity, const char[] classname) {
 	if (!IsValidEntity(entity)) return;
-    
+	
 	if (StrEqual(classname, "player")) {
 		hookClient(entity);
 	} else if (IsValidEntity(entity) && StrEqual(classname, "tf_ammo_pack") && cvar_WeaponDropNoAmmo.BoolValue) {
@@ -175,7 +182,6 @@ public void OnEntityCreated(int entity, const char[] classname) {
 public Action OnClientCommandKeyValues(int client, KeyValues kvCommand) {
     char command[64];
     kvCommand.GetSectionName(command,sizeof(command));
-    //PrintToServer("%N issued command %s", client, command);
     if (StrEqual(command,"+use_action_slot_item_server")) {
     	int entity = getClientViewTarget(client);
     	if (entity > 0 && pickUpWeapon(client, entity)) {
@@ -216,6 +222,7 @@ void hookClient(int client) {
 void clientRegen(int client) {
 	if (!Client_IsIngame(client)) return;
 	isClientOverheal[client] = false;
+	Impl_TF2rpu_ClientHolsterWeapon(client, false, true);
 }
 
 public bool hitSelfFilter(int entity, int contentsMask, any data) {
@@ -246,11 +253,14 @@ public void Event_ClientSpawnPost(int client) {
 			
 			if (clientForcedRespawnHealth[client]>0) {
 				//forced respawn health should only apply when class changing
-				Entity_SetHealth(client, clientForcedRespawnHealth[client]);
+				Impl_TF2rpu_SetHealthEx(client, clientForcedRespawnHealth[client]);
 				clientForcedRespawnHealth[client] = -1;
 			}
+			
+			RequestFrame(TF2rpu_NotifyPostClassChangeRespawn, client);
 		}
 	}
+	clientClassChangeTime[client] = GetGameTime(); //preven quick change after spawn
 	clientClassChange[client] = false;
 }
 
@@ -289,7 +299,7 @@ public void Event_ClientTakeDamagePost(int victim, int attacker, int inflictor, 
 
 void clientDeath(int client) {
 	Impl_TF2rpu_ResetMaxHealth(client);
-	if (cvar_WeaponDrop.BoolValue) {
+	if (cvar_WeaponDrop.BoolValue && !clientClassChange[client]) {
 		int weapon = Client_GetActiveWeapon(client);
 		if (Entity_IsValid(weapon)) {
 			Impl_TF2rpu_DropWeapon(client, weapon);
@@ -383,13 +393,21 @@ void Fire_ClientPickupWeaponPost(int client, int weapon, int defindex) {
 }
 
 /** @return true if the weapon is allowed to spawn, false if cancelled */
-bool Fire_ClientClassChangeCheck(int client, TFClassType& class) {
-	Call_StartForward(gfwd_ClientClassChangeCheck);
+bool Fire_ClientClassChangePre(int client, TFClassType& class) {
+	Call_StartForward(gfwd_ClientClassChangePre);
 	Call_PushCell(client);
 	Call_PushCellRef(class);
 	Action result;
 	Call_Finish(result);
 	return result < Plugin_Handled;
+}
+
+/** @noreturn */
+void Fire_ClientClassChange(int client, TFClassType class) {
+	Call_StartForward(gfwd_ClientClassChange);
+	Call_PushCell(client);
+	Call_PushCell(class);
+	Call_Finish();
 }
 
 /** @noreturn */
@@ -442,6 +460,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("CursorAnnotation.SetLifetime",          Native_CursorAnnotation_SetLifetime);
 	CreateNative("CursorAnnotation.ParentEntity.get",     Native_CursorAnnotation_ParentEntity_Get);
 	CreateNative("CursorAnnotation.ParentEntity.set",     Native_CursorAnnotation_ParentEntity_Set);
+	CreateNative("CursorAnnotation.IsPlaying.get",        Native_CursorAnnotation_IsPlaying_Get);
 	CreateNative("CursorAnnotation.Update",               Native_CursorAnnotation_Update);
 	CreateNative("CursorAnnotation.Hide",                 Native_CursorAnnotation_Hide);
 	CreateNative("TF2rpu_HudNotificationCustom",          Native_TF2rpu_HudNotificationCustom);
@@ -783,6 +802,11 @@ public any Native_CursorAnnotation_ParentEntity_Set(Handle plugin, int argc) {
 	int entity = view_as<int>(GetNativeCell(2));
 	
 	annotations[index].SetParent(entity);
+}
+public any Native_CursorAnnotation_IsPlaying_Get(Handle plugin, int argc) {
+	int index = view_as<int>(GetNativeCell(1));
+	
+	return annotations[index].IsPlaying();
 }
 public any Native_CursorAnnotation_Update(Handle plugin, int argc) {
 	int index = view_as<int>(GetNativeCell(1));

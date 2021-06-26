@@ -15,7 +15,7 @@ public Action commandChangeClass(int client, const char[] command, int argc) {
 		GetCmdArg(1, arg1, sizeof(arg1));
 		TFClassType classtype = TF2_GetClass(arg1);
 		
-		if (!Fire_ClientClassChangeCheck(client, classtype)) return Plugin_Handled;
+		if (!Fire_ClientClassChangePre(client, classtype)) return Plugin_Handled;
 		
 		if (TF2_GetPlayerClass(client)!=TFClass_Unknown && IsPlayerAlive(client)) { //is alive and already assigned a class (not admin)
 			if (classtype == TFClass_Unknown) classtype = view_as<TFClassType>(GetRandomInt(1,9));
@@ -35,15 +35,19 @@ public Action commandChangeClass(int client, const char[] command, int argc) {
 				return Plugin_Handled;
 			}
 			clientClassChangeTime[client] = GetGameTime();
-			Impl_TF2rpu_ForcePlayerClass(client, 1 << view_as<int>(classtype));
+//			Impl_TF2rpu_ForcePlayerClass(client, 1 << view_as<int>(classtype));
 			clientClassChange[client] = true;
 			Entity_GetAbsOrigin(client, clientForcedRespawnLocation[client][0]);
 			GetClientEyeAngles(client, clientForcedRespawnLocation[client][1]);
 			
 			if (canClientContinue(client, cvar_InstantClassForceHealth, true))
-				clientForcedRespawnHealth[client] = GetClientHealth(client);
-			RequestFrame(_ForceRespawnClient, client);
+				clientForcedRespawnHealth[client] = Entity_GetHealth(client);
+			
+			Fire_ClientClassChange(client, classtype);
 			TF2_SetPlayerClass(client, classtype);
+			TF2_RespawnPlayer(client);
+//			RequestFrame(_ForceRespawnClient, client);
+//			RequestFrame(_NotifyPostRespawn, client);
 			
 			return Plugin_Handled;
 		}// else get ingame / default change behaviour while dead
@@ -51,10 +55,15 @@ public Action commandChangeClass(int client, const char[] command, int argc) {
 	return Plugin_Continue;
 }
 
-static void _ForceRespawnClient(any data) {
+//static void _ForceRespawnClient(any data) {
+//	int client = view_as<int>(data);
+//	if (!Client_IsValid(client) || !IsClientInGame(client)) return;
+//	TF2_RespawnPlayer(client);
+//	RequestFrame(_NotifyPostRespawn, data);
+//}
+void TF2rpu_NotifyPostClassChangeRespawn(any data) {
 	int client = view_as<int>(data);
 	if (!Client_IsValid(client) || !IsClientInGame(client)) return;
-	TF2_RespawnPlayer(client);
 	
 	Fire_ClientClassChangePost(client, TF2_GetPlayerClass(client));
 }

@@ -49,10 +49,8 @@ int Impl_TF2rpu_GiveWeaponEx(int client, int weaponDefinitionIndex, bool switchT
 	int weapon = _GiveWeapon(client, weaponDefinitionIndex);
 	if (Entity_IsValid(weapon)) {
 		SetEntProp(weapon, Prop_Send, PROP_ACCOUNTID, GetSteamAccountID(client));
-		Weapon_SetOwner(weapon, client);
-		if (switchTo) {
-			Client_SetActiveWeapon(client, weapon);
-		}
+//		Weapon_SetOwner(weapon, client);
+		if (switchTo) Client_SetActiveWeapon(client, weapon);
 	}
 	return weapon;
 }
@@ -65,12 +63,6 @@ static bool _TF2rpu_TF2EconItemFilter_ByClassname(int itemDef, any data) {
 	pack.ReadString(query, sizeof(query));
 	
 	TF2Econ_GetItemClassName(itemDef, buffer, sizeof(buffer));
-//	if (String_StartsWith(buffer, query)) {
-//		rarity
-//		PrintToServer("[TF2Econ Filter] %s %i has rarity %i", buffer, itemDef, TF2Econ_GetItemRarity(itemDef));
-//		return TF2Econ_GetItemRarity(itemDef) == TF2Econ_DefaultRarityNormal;
-//	} else return false;
-//	PrintToServer("[TF2Econ Filter] StartsWith %s %s", buffer, query);
 	if (String_StartsWith(query, "tf_weapon_rocketlauncher"))
 		return StrEqual(buffer, query) && TF2Econ_GetItemRarity(itemDef)<=TF2Econ_DefaultRarityNormal;
 	else
@@ -285,9 +277,10 @@ bool Impl_TF2rpu_SetActiveWeapon(int client, int preferedWeaponSlot) {
 	if (slotNext == -1) {
 		//could not find a weapon on the player
 		weapon=_GiveWeapon(client, WEAPON_HANDS); //definition index 5 = fists
-		slotNext = 2;
+		if (weapon == INVALID_ENT_REFERENCE) return false;
 	}
 	Client_SetActiveWeapon(client, weapon);
+	return true;
 }
 
 /** @return the item definition index for the currently active weapon or -1 on error */
@@ -328,15 +321,18 @@ int Impl_TF2rpu_GetWeaponType(int client, const char[] classname, bool partialMa
 }
 
 int Impl_TF2rpu_DropWeapon(int client, int weapon) {
-	if (!Client_IsValid(client) || !Weapon_IsValid(weapon)) return -1;
-	if (Entity_ClassNameMatches(weapon, "tf_weapon_fists")) return -1; //can't drop fists
+	float origin[3], angles[3], velocity[3];
+	int worldEntity, weaponIndex, quality, clip, ammo;
+	char wModel[PLATFORM_MAX_PATH];
+	
+	if (!Client_IsValid(client) || !Weapon_IsValid(weapon))
+		return INVALID_ENT_REFERENCE;
+	if (!_HasWeaponWorldModel(weapon, wModel, sizeof(wModel)))
+		return INVALID_ENT_REFERENCE; //can't drop fists
 	if (Impl_TF2rpu_IsPhysGun(weapon)) {
 		if (IsPlayerAlive(client)) TF2_RemoveWeaponSlot(client,1);
-		return -1; //cannot be dropped anyways
+		return INVALID_ENT_REFERENCE; //cannot be dropped anyways
 	}
-	float origin[3], angles[3], velocity[3];
-	int worldEntity, weaponIndex, wModelIndex, quality, clip, ammo;
-	char wModel[PLATFORM_MAX_PATH];
 	
 	GetClientEyePosition(client, origin);
 	GetClientEyeAngles(client, angles);
@@ -348,16 +344,22 @@ int Impl_TF2rpu_DropWeapon(int client, int weapon) {
 	weaponIndex = GetEntProp(weapon, Prop_Send, PROP_ITEMDEFINITIONINDEX);
 //	level = GetEntProp(weapon, Prop_Send, PROP_ENTITYLEVEL);
 	quality = GetEntProp(weapon, Prop_Send, PROP_ENTITYQUALITY);
-	wModelIndex = GetEntProp(weapon, Prop_Send, PROP_WORLDMODELINDEX);
-	ModelIndexToString(wModelIndex, wModel, sizeof(wModel));
 	clip = Weapon_GetPrimaryClip(weapon);
 	Client_GetWeaponPlayerAmmoEx(client, weapon, ammo);
 	
-	if ((worldEntity = Impl_TF2rpu_CreateDroppedWeapon(client, weaponIndex, wModel, quality, clip, ammo, origin, angles, velocity)) > 0) {
+	if ((worldEntity = Impl_TF2rpu_CreateDroppedWeapon(client, weaponIndex, wModel, quality, clip, ammo, origin, angles, velocity)) != INVALID_ENT_REFERENCE) {
 		if (IsPlayerAlive(client)) TF2_RemoveWeaponSlot(client, _CheckWeaponSlot(weaponIndex,TF2_GetPlayerClass(client)) );
 		return worldEntity;
 	}
-	return -1;
+	return INVALID_ENT_REFERENCE;
+}
+
+bool _HasWeaponWorldModel(int weapon, char model[] = "", int mdlsize=0) {
+	char wModel[PLATFORM_MAX_PATH];
+	int wModelIndex = GetEntProp(weapon, Prop_Send, PROP_WORLDMODELINDEX);
+	ModelIndexToString(wModelIndex, wModel, sizeof(wModel));
+	if (mdlsize) strcopy(model,mdlsize,wModel);
+	return !!strlen(wModel);
 }
 
 int Impl_TF2rpu_SpawnWeaponAt(int client, int weaponDefinitionIndex) {
@@ -386,7 +388,6 @@ int Impl_TF2rpu_SpawnWeaponAt(int client, int weaponDefinitionIndex) {
 }
 
 int Impl_TF2rpu_CreateDroppedWeapon(int client, int weaponDefinitionIndex, const char[] worldModel, int quality, int clip, int ammo, const float origin[3], const float angles[3], const float velocity[3]) {
-//	if (!gcSpawnCheck()) return -1;
 	int entity = CreateEntityByName("tf_dropped_weapon");
 	SetEntProp(entity, Prop_Send, PROP_ITEMDEFINITIONINDEX, weaponDefinitionIndex);
 	SetEntProp(entity, Prop_Send, PROP_ENTITYLEVEL, -127);
@@ -399,7 +400,6 @@ int Impl_TF2rpu_CreateDroppedWeapon(int client, int weaponDefinitionIndex, const
 	TeleportEntity(entity, origin, angles, velocity);
 	SetEntData(entity, droppedWeaponClipOffset, clip, _, true);
 	SetEntData(entity, droppedWeaponAmmoOffset, ammo, _, true);
-	//PrintToServer("Weapon properties: wdi:%i wmi:%i lvl:%i qty:%i ammo:%i/%i", weaponDefinitionIndex, worldModelIndex, level, quality, clip, ammo);
 	return entity;
 }
 
@@ -473,6 +473,5 @@ int _GiveWeapon(int client, int itemIndex) {
 	if (IsValidEntity(entity)) {
 		EquipPlayerWeapon(client, entity);
 	}
-	
 	return entity;
 }

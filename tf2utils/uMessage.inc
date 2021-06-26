@@ -9,6 +9,7 @@ enum struct AnnotationData {
 	bool idused;
 	float pos[3];
 	float lifetime;
+	float timeoutestimate; // the time where this annotation will be timed out (through lifetime after Send)
 	int visibility;
 	char text[MAX_ANNOTATION_LENGTH];
 	bool isDeployed;
@@ -25,6 +26,10 @@ enum struct AnnotationData {
 	void SetParent(int entity) {
 		if (!IsValidEdict(entity)) this.followEntity = INVALID_ENT_REFERENCE;
 		else this.followEntity = (entity >= 0) ? EntIndexToEntRef(entity) : entity;
+	}
+	bool IsPlaying() {
+		if (this.timeoutestimate <= GetGameTime()) this.isDeployed = false;
+		return this.isDeployed;
 	}
 	/** @return true if the annotaion was sent to clients */
 	bool Send(int selfIndex, const char[] sound, bool showEffect = false) {
@@ -45,6 +50,7 @@ enum struct AnnotationData {
 		if (this.visibility != -1) event.SetInt("visibilityBitfield", this.visibility);
 		if (showEffect) event.SetBool("show_effect", showEffect);
 		event.Fire();
+		this.timeoutestimate = GetGameTime() + (this.lifetime > 0 ? this.lifetime : 0);
 		return true;
 	}
 	/** @return true if the annotation is hidden after call */
@@ -88,52 +94,12 @@ any Impl_CursorAnnotation_new(int index = -1, bool reset=false) {
 	return index;
 }
 
-// move that back to rp actually
-///**
-// * displayType: 0 origin, 1 center, 2 above
-// * showeffect: green becon at annotation location, will force update
-// */
-//bool Impl_TF2rpu_CursorAnnotationUpdate(int client, const char[] text, int entity, bool follow=false, int displayType=0, bool showEffect=false) {
-//	// find annotation and validate entity
-//	Annotation annotation = Annotation(ANNOTATION_CURSOR_OFFSET + client);
-//	if (!annotation.IsValid) return false; // could not get annotations
-//	
-//	if (!IsValidEdict(entity)) { // entity went away?
-//		annotation.Close();
-//		return false;
-//	} else if (annotation.Data != entity) {
-//		float origin[3];
-//		Entity_GetAbsOrigin(entity, origin);
-//		if (displayType >= 1) {
-//			float vec1[3], vec2[3];
-//			Entity_GetMinSize(entity, vec1);
-//			Entity_GetMaxSize(entity, vec2);
-//			AddVectors(origin, vec1, origin); //make origin abs min
-//			SubtractVectors(vec2, vec1, vec2); //vec2 is not dims
-//			vec1=vec2;
-//			ScaleVector(vec1, 0.5); //vec1 is now center offset
-//			if (displayType == 2) {
-//				vec1[2] = vec2[2]; //pull back to top
-//			}
-//			AddVectors(origin, vec1, origin); //absolute position into origin
-//		}
-//		annotation.SetPosition(origin);
-//		annotation.SetVisibleAll(false);
-//		annotation.SetVisibleFor(client, true);
-//		annotation.Data = entity;
-//		if (follow) annotation.ParentEntity = entity;
-//	} 
-//	if (annotation.SetText(text) || showEffect) {
-//		annotation.Update(_, showEffect);
-//	}
-//	return true;
-//}
-//void Impl_TF2rpu_CursorAnnotationClose(int client) {
-//	Annotation annotation = Annotation(ANNOTATION_CURSOR_OFFSET + client);
-//	if (!annotation.IsValid) return; // could not get annotations
-//	
-//	annotation.Close();
-//}
+void updateAnnotationsMapchange() {
+	for (int i;i<MAX_ANNOTATION_COUNT;i++) {
+		annotations[i].timeoutestimate = 0.0;
+		annotations[i].isDeployed = false;
+	}
+}
 
 /**
  * Displays a HudNotification (centered, bottom half) for the client

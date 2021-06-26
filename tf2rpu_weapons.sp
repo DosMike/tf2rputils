@@ -20,9 +20,8 @@ public Action commandDropWeapon(int client, int args) {
 			int weaponIndex;
 			bool physgun = Impl_TF2rpu_IsPhysGun(weapon, weaponIndex);
 			tf2WeaponSlot weaponSlot = _CheckWeaponSlot(weaponIndex);
-			PrintToServer("Drop L/W: %i->%i", TF2Econ_GetItemLoadoutSlot(weaponIndex, TF2_GetPlayerClass(client)), weaponSlot)
 			
-			if ( weaponSlot > TF2WeaponSlot_Melee || weaponIndex == WEAPON_HANDS || !Fire_ClientDropWeapon(client,weapon,weaponIndex) ) {
+			if ( weaponSlot > TF2WeaponSlot_Melee || !_HasWeaponWorldModel(weapon) || !Fire_ClientDropWeapon(client,weapon,weaponIndex) ) {
 				//we shouldn't drop things that aren't weapons (cause issues with giveNamedItem when picking up)
 				//we can't drop fists without world model
 				//and we can't drop if other plugins say so
@@ -32,7 +31,8 @@ public Action commandDropWeapon(int client, int args) {
 				Impl_TF2rpu_SetActiveWeapon(client, TF2WeaponSlot_Unknown); //try to switch
 				return Plugin_Handled;
 			}
-			Impl_TF2rpu_DropWeapon(client, weapon);
+			if (Impl_TF2rpu_DropWeapon(client, weapon) == INVALID_ENT_REFERENCE)
+				return Plugin_Handled; //could not drop
 			if (weaponSlot == TF2WeaponSlot_Melee) {
 				//Dropped melee weapon
 				Impl_TF2rpu_GiveWeaponEx(client, WEAPON_HANDS, false); // give fists for melee to prevent t-posing
@@ -79,10 +79,11 @@ public Action commandCreateDroppedWeapon(int client, int args) {
  * 
  * @param client   the client to holster a weapon from
  * @param holser   true to holser, false to unholster
- * @param dropHolser if true and unholster, the holstered weapon will not be restored
+ * @param dropHolser if true, the holstered weapon will not be restored
  */
 void Impl_TF2rpu_ClientHolsterWeapon(int client, bool holster, bool dropHolster=false) {
 	if (!IsClientInGame(client)) return;
+	if (dropHolster) clientWeaponsHiddenMelee[client] = -1;
 	if (clientWeaponsHolstered[client] == holster) {
 		if (holster) Impl_TF2rpu_SetActiveWeapon(client, TF2WeaponSlot_Melee);
 		return;
@@ -101,7 +102,7 @@ void Impl_TF2rpu_ClientHolsterWeapon(int client, bool holster, bool dropHolster=
 		CPrintToChat(client, "%t", "holster info");
 		Impl_TF2rpu_GiveWeaponEx(client, WEAPON_HANDS, true);
 		Fire_ClientHolsterWeapon(client, melee);
-	} else if (!dropHolster) {
+	} else if (clientWeaponsHiddenMelee[client] >= 0) {
 		clientWeaponsHolstered[client] = false;
 		Impl_TF2rpu_GiveWeaponEx(client, clientWeaponsHiddenMelee[client], true);
 		Fire_ClientHolsterWeapon(client, -1);
@@ -115,18 +116,11 @@ int Impl_TF2rpu_GetClientHolsteredWeapon(int client) {
 }
 
 void Event_ClientWeaponSwitchPost(int client, int weapon) {
-//	int idx=Impl_TF2rpu_GetWeapondDefinitionIndex(weapon), 
-//		clz=TF2_GetPlayerClass(client),
-//		ls=TF2Econ_GetItemLoadoutSlot(idx, clz),
-//		cs=TF2Items_CheckWeaponSlot(idx),
-//		ws=_CheckWeaponSlot(idx, clz);
-//	PrintToServer("Slots L/W/C: %i->%i (%i)", ls,cs,ws);
-		
 	if (client && clientWeaponsHolstered[client]) {
 		if (!clientWeaponsIsFisting[client]) {
 			clientWeaponsIsFisting[client] = true;
 		} else if (weapon != INVALID_ENT_REFERENCE && Impl_TF2rpu_GetWeapondDefinitionIndex(weapon) == WEAPON_HANDS) {
-			Impl_TF2rpu_ClientHolsterWeapon(client, false, _CheckWeaponSlot(weapon, TF2_GetPlayerClass(client)) == TF2WeaponSlot_Melee);
+			Impl_TF2rpu_ClientHolsterWeapon(client, false);
 		}
 	}
 }
@@ -157,7 +151,6 @@ bool pickUpWeapon(int client, int entity) {
 	if (!cvar_WeaponPickup.BoolValue) return false;
 	
 	int index = Impl_TF2rpu_GetWeapondDefinitionIndex(entity);
-	//PrintToServer("This weapon is m_iItemDefinitionIndex %i, in clip: %i", index, clip);
 	bool canClassPickup = Impl_TF2rpu_WeaponConvertCompatible(index, TF2_GetPlayerClass(client));
 	if (!Fire_ClientPickupWeapon(client,entity,index)) return false;
 	if (!canClassPickup && !canClientContinue(client,cvar_WeaponPickupIgnoreClass)) {
@@ -168,7 +161,8 @@ bool pickUpWeapon(int client, int entity) {
 		PrintToChat(client, "%t", "action invalid player class", TFClassNames[TF2_GetPlayerClass(client)]);
 		return false;
 	}
-	int weapon, slot = _CheckWeaponSlot(index, TF2_GetPlayerClass(client));
+	int weapon;
+	tf2WeaponSlot slot = _CheckWeaponSlot(index, TF2_GetPlayerClass(client));
 	//try to drop the current weapon in the slot into the world
 	if (( weapon = GetPlayerWeaponSlot(client, slot) )!=-1) {
 		Impl_TF2rpu_DropWeapon(client, weapon);
@@ -178,6 +172,7 @@ bool pickUpWeapon(int client, int entity) {
 	//delete weapon on floor
 	AcceptEntityInput(entity, "Kill");
 	//give new weapon and set ammo
+	Impl_TF2rpu_ClientHolsterWeapon(client, false, slot == TF2WeaponSlot_Melee);
 	if (( weapon = _GiveWeapon(client, index) )!=INVALID_ENT_REFERENCE) {
 		Weapon_SetPrimaryClip(weapon, clip);
 		Client_SetWeaponPlayerAmmoEx(client, weapon, ammo);
