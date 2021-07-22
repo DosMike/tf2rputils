@@ -23,9 +23,9 @@
 #include <tf2>
 #include <tf2_stocks>
 #include <tf2items>
-//#include <tf2items_giveweapon> /* can use tf2ii api - can we remove this? */
 #include <tf2attributes>
 #include <tf_econ_data>
+#include "tf2hudmsg.inc"
 
 // --== CONVARS ==--
 
@@ -55,7 +55,6 @@ GlobalForward gfwd_ClientClassChangePost;
 
 #include "tf2utils/uWeapons.inc"
 #include "tf2utils/uHealth.inc"
-#include "tf2utils/uMessage.inc"
 #include "tf2utils/uMisc.inc"
 
 #include "tf2rpu_weapons.sp"
@@ -64,8 +63,6 @@ GlobalForward gfwd_ClientClassChangePost;
 
 // Some usefull links:
 // all dumps: https://github.com/powerlord/tf2-data
-// annotations: https://forums.alliedmods.net/showthread.php?p=1946768
-// hudnotifycustom: https://forums.alliedmods.net/showthread.php?t=155911
 
 #pragma newdecls required
 #pragma semicolon 1
@@ -74,7 +71,7 @@ public Plugin myinfo = {
 	name = "[TF2] RP Utils",
 	author = "reBane",
 	description = "Library providing TF2 functions for my own (in)sanity",
-	version = "21w25b",
+	version = "21w29a",
 	url = "N/A"
 }
 
@@ -90,14 +87,14 @@ public void OnPluginStart() {
 	LoadTranslations("tf2rpu.phrases");
 	LoadTranslations("common.phrases");
 	
-	cvar_WeaponDrop =                CreateConVar("tfrpu_weapondrop_enable", "1", "Enables the weapon drop system", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_WeaponDropCommands =        CreateConVar("tfrpu_weapondrop_command", "1", "Allows players to actively drop weapons, value 2 will allow only admin", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	cvar_WeaponDrop =                CreateConVar("tfrpu_weapondrop_enable", "0", "Enables the weapon drop system", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvar_WeaponDropCommands =        CreateConVar("tfrpu_weapondrop_command", "2", "Allows players to actively drop weapons, value 2 will allow only admin", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	cvar_WeaponDropNoAmmo =          CreateConVar("tfrpu_weapondrop_noammo", "1", "Disable ammo boxes from dropping", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_WeaponPickup =              CreateConVar("tfrpu_weaponpickup_enable", "1", "Allow players to pick up weapons from the ground with +use", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_WeaponPickupIgnoreClass =   CreateConVar("tfrpu_weaponpickup_ignoreclass", "1", "Any player can pick up any weapons on the ground, value 2 will allow only admin", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
-	cvar_WeaponHolster =             CreateConVar("tfrpu_weaponholster_enable", "1", "Players can use !holster to put their melee away", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvar_WeaponPickup =              CreateConVar("tfrpu_weaponpickup_enable", "0", "Allow players to pick up weapons from the ground with +use", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	cvar_WeaponPickupIgnoreClass =   CreateConVar("tfrpu_weaponpickup_ignoreclass", "0", "Any player can pick up any weapons on the ground, value 2 will allow only admin", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	cvar_WeaponHolster =             CreateConVar("tfrpu_weaponholster_enable", "0", "Players can use !holster to put their melee away", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	cvar_WeaponHolsterNoFistdamage = CreateConVar("tfrpu_weaponholster_nodamage", "1", "Fists (given by !holster) do not deal any damage", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	cvar_InstantClass =              CreateConVar("tfrpu_instantclass_enable", "1", "Allows players to change class without cooldown / death, value 2 will only enable this for admins", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	cvar_InstantClass =              CreateConVar("tfrpu_instantclass_enable", "0", "Allows players to change class without cooldown / death, value 2 will only enable this for admins", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	cvar_InstantClassForceHealth =   CreateConVar("tfrpu_instantclass_keephp", "1", "Changin class does not heal, but \"duck\" hp to the new max, value 2 will on apply to non-admins", FCVAR_ARCHIVE|FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	
 	gfwd_ClientHolsterWeapon =     new GlobalForward("TF2rpu_OnClientHolsterWeapon", ET_Ignore, Param_Cell, Param_Cell);
@@ -147,11 +144,6 @@ public void OnPluginEnd() {
 		}
 	}
 }
-
-public void OnMapStart() {
-	updateAnnotationsMapchange();
-}
-
 
 public void OnGameFrame() {
 	_TF2rpu_thinkOverheal();
@@ -445,26 +437,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("TF2rpu_ClientPhysGunActive",            Native_TF2rpu_ClientPhysGunActive);
 	CreateNative("TF2rpu_IsPhysGun",                      Native_TF2rpu_IsPhysGun);
 	CreateNative("TF2rpu_ClientHideScoreboard",           Native_TF2rpu_ClientHideScoreboard);
-	CreateNative("CursorAnnotation.CursorAnnotation",     Native_CursorAnnotation_new);
-	CreateNative("CursorAnnotation.Close",                Native_CursorAnnotation_Close);
-	CreateNative("CursorAnnotation.IsValid.get",          Native_CursorAnnotation_IsValid_Get);
-	CreateNative("CursorAnnotation.SetVisibilityFor",     Native_CursorAnnotation_SetVisibilityFor);
-	CreateNative("CursorAnnotation.SetVisibilityAll",     Native_CursorAnnotation_SetVisibilityAll);
-	CreateNative("CursorAnnotation.VisibilityBitmask.get",Native_CursorAnnotation_VisibilityBitmask_Get);
-	CreateNative("CursorAnnotation.VisibilityBitmask.set",Native_CursorAnnotation_VisibilityBitmask_Set);
-	CreateNative("CursorAnnotation.Data.get",             Native_CursorAnnotation_Data_Get);
-	CreateNative("CursorAnnotation.Data.set",             Native_CursorAnnotation_Data_Set);
-	CreateNative("CursorAnnotation.SetText",              Native_CursorAnnotation_SetText);
-	CreateNative("CursorAnnotation.SetPosition",          Native_CursorAnnotation_SetPosition);
-	CreateNative("CursorAnnotation.GetPosition",          Native_CursorAnnotation_GetPosition);
-	CreateNative("CursorAnnotation.SetLifetime",          Native_CursorAnnotation_SetLifetime);
-	CreateNative("CursorAnnotation.ParentEntity.get",     Native_CursorAnnotation_ParentEntity_Get);
-	CreateNative("CursorAnnotation.ParentEntity.set",     Native_CursorAnnotation_ParentEntity_Set);
-	CreateNative("CursorAnnotation.IsPlaying.get",        Native_CursorAnnotation_IsPlaying_Get);
-	CreateNative("CursorAnnotation.Update",               Native_CursorAnnotation_Update);
-	CreateNative("CursorAnnotation.Hide",                 Native_CursorAnnotation_Hide);
-	CreateNative("TF2rpu_HudNotificationCustom",          Native_TF2rpu_HudNotificationCustom);
-	CreateNative("TF2rpu_HudNotificationCustomAll",       Native_TF2rpu_HudNotificationCustomAll);
 	CreateNative("TF2rpu_SetHealthEx",                    Native_TF2rpu_SetHealthEx);
 	CreateNative("TF2rpu_GetClientMaxHealth",             Native_TF2rpu_GetClientMaxHealth);
 	CreateNative("TF2rpu_SetClientMaxHealth",             Native_TF2rpu_SetClientMaxHealth);
@@ -682,6 +654,7 @@ public any Native_TF2rpu_SetClientModel(Handle plugin, int argc) {
 	GetNativeString(2,model,maxlen+1);
 	
 	Impl_TF2rpu_SetClientModel(client, model);
+	return 0;
 }
 
 //native bool TF2rpu_ClientPhysGunActive(int client);
@@ -707,156 +680,6 @@ public any Native_TF2rpu_ClientHideScoreboard(Handle plugin, int argc) {
 	int flags = view_as<int>(GetNativeCell(2));
 	
 	Impl_TF2rpu_ClientHideScoreboard(client, flags);
-}
-
-public any Native_CursorAnnotation_new(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	bool reset = view_as<bool>(GetNativeCell(2));
-	
-	return Impl_CursorAnnotation_new(index, reset);
-}
-public any Native_CursorAnnotation_Close(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	annotations[index].Hide(index);
-	annotations[index].idused = false;
-}
-public any Native_CursorAnnotation_IsValid_Get(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	return index>=0 && index<MAX_ANNOTATION_COUNT && annotations[index].idused;
-}
-public any Native_CursorAnnotation_SetVisibilityFor(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	int client = view_as<int>(GetNativeCell(2));
-	bool visible = view_as<bool>(GetNativeCell(3));
-	
-	annotations[index].VisibleFor(client, visible);
-}
-public any Native_CursorAnnotation_SetVisibilityAll(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	bool visible = view_as<bool>(GetNativeCell(2));
-	
-	annotations[index].visibility = (visible) ? -1 : 0;
-}
-public any Native_CursorAnnotation_VisibilityBitmask_Get(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	return annotations[index].visibility;
-}
-public any Native_CursorAnnotation_VisibilityBitmask_Set(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	int value = view_as<int>(GetNativeCell(2));
-	
-	annotations[index].visibility = value;
-}
-public any Native_CursorAnnotation_Data_Get(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	return annotations[index].plugindata;
-}
-public any Native_CursorAnnotation_Data_Set(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	any value = GetNativeCell(2);
-	
-	annotations[index].plugindata = value;
-}
-public any Native_CursorAnnotation_SetText(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	int len;
-	GetNativeStringLength(2,len);
-	char[] text = new char[len+1];
-	GetNativeString(2, text, len+1);
-	
-	if (StrEqual(annotations[index].text, text)) return false;
-	annotations[index].SetText(text);
-	return true;
-}
-public any Native_CursorAnnotation_SetPosition(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	float vec[3];
-	GetNativeArray(2,vec,sizeof(vec));
-	
-	annotations[index].pos = vec;
-}
-public any Native_CursorAnnotation_GetPosition(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	float vec[3];
-	
-	vec = annotations[index].pos;
-	SetNativeArray(2,vec,sizeof(vec));
-}
-public any Native_CursorAnnotation_SetLifetime(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	float lifetime = view_as<float>(GetNativeCell(2));
-	
-	annotations[index].lifetime = lifetime;
-}
-public any Native_CursorAnnotation_ParentEntity_Get(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	return annotations[index].followEntity;
-}
-public any Native_CursorAnnotation_ParentEntity_Set(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	int entity = view_as<int>(GetNativeCell(2));
-	
-	annotations[index].SetParent(entity);
-}
-public any Native_CursorAnnotation_IsPlaying_Get(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	return annotations[index].IsPlaying();
-}
-public any Native_CursorAnnotation_Update(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	int len;
-	GetNativeStringLength(2,len);
-	char[] sound = new char[len+1];
-	GetNativeString(2,sound,len+1);
-	bool effect = view_as<bool>(GetNativeCell(3));
-	
-	annotations[index].Send(index, sound, effect);
-}
-public any Native_CursorAnnotation_Hide(Handle plugin, int argc) {
-	int index = view_as<int>(GetNativeCell(1));
-	
-	annotations[index].Hide(index);
-}
-
-//native void TF2rpu_HudNotificationCustom(int client, const char[] icon="voice_self", int background=-1, bool stripMoreColors=false, const char[] message, any ...);
-public any Native_TF2rpu_HudNotificationCustom(Handle plugin, int argc) {
-	int client = view_as<int>(GetNativeCell(1));
-	int maxlen;
-	GetNativeStringLength(2, maxlen);
-	if (maxlen < 0) return;
-	char[] icon = new char[maxlen+1];
-	GetNativeString(2,icon,maxlen+1);
-	int background = view_as<int>(GetNativeCell(3));
-	bool stripcol = view_as<bool>(GetNativeCell(4));
-	char message[MAX_MESSAGE_LENGTH];
-	SetGlobalTransTarget(client);
-	FormatNativeString(0,5,6,MAX_MESSAGE_LENGTH,_,message,_);
-	
-	Impl_TF2rpu_HudNotificationCustom(client, icon, background, stripcol, message);
-}
-
-//native void TF2rpu_HudNotificationCustomAll(const char[] icon="voice_self", int background=-1, bool stripMoreColors=false, const char[] message, any ...);
-public any Native_TF2rpu_HudNotificationCustomAll(Handle plugin, int argc) {
-	int maxlen;
-	GetNativeStringLength(1, maxlen);
-	if (maxlen < 0) return;
-	char[] icon = new char[maxlen+1];
-	GetNativeString(1,icon,maxlen+1);
-	int background = view_as<int>(GetNativeCell(2));
-	bool stripcol = view_as<bool>(GetNativeCell(3));
-	char message[MAX_MESSAGE_LENGTH];
-	
-	for (int i=1;i<=MaxClients;i++) {
-		SetGlobalTransTarget(i);
-		FormatNativeString(0,4,5,MAX_MESSAGE_LENGTH,_,message,_);
-		Impl_TF2rpu_HudNotificationCustom(i, icon, background, stripcol, message);
-	}
 }
 
 //native void TF2rpu_SetHealthEx(int client, int health=-1, int maxhealth=-1, bool disableDecay=false);

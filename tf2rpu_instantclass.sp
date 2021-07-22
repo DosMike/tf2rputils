@@ -23,15 +23,15 @@ public Action commandChangeClass(int client, const char[] command, int argc) {
 			float vel[3];
 			Entity_GetAbsVelocity(client,vel);
 			if (GetVectorLength(vel, true)>1) {
-				Impl_TF2rpu_HudNotificationCustom(client, _, _, true, formatted(client, "%t", "action invalid while moving"));
+				TF2_HudNotificationCustom(client, _, _, true, formatted(client, "%t", "action invalid while moving"));
 				return Plugin_Handled;
 			}
 			if (GetGameTime() - clientClassChangeTime[client] < CHANGECLASS_COOLDOWN) { // change class cooldown
-				Impl_TF2rpu_HudNotificationCustom(client, "ico_notify_ten_seconds", _, _, formatted(client, "%t", "class switch cooldown"));
+				TF2_HudNotificationCustom(client, "ico_notify_ten_seconds", _, _, formatted(client, "%t", "class switch cooldown"));
 				return Plugin_Handled;
 			}
 			if ((Entity_GetFlags(client)&FL_DUCKING) || (GetClientButtons(client)&IN_DUCK)) {
-				Impl_TF2rpu_HudNotificationCustom(client, _, _, _, formatted(client, "%t", "action invalid while crouched"));
+				TF2_HudNotificationCustom(client, _, _, _, formatted(client, "%t", "action invalid while crouched"));
 				return Plugin_Handled;
 			}
 			clientClassChangeTime[client] = GetGameTime();

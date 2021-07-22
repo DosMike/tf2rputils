@@ -216,6 +216,8 @@ bool Impl_TF2rpu_WeaponConvertCompatible(int& weaponIndex, TFClassType playerCla
 		return true; //weaponIndex already ok
 	else if (!isNormal)
 		return false; //don't try to convert special items
+	else if (strcmp(buffer,"saxxy")==0) //saxxy are all-class, no need to convert
+		return true;
 	
 	int replaceWith = -1;
 	DataPack pack = new DataPack();
@@ -444,10 +446,14 @@ int _GiveWeapon(int client, int itemIndex) {
 	char classname[96];
 	if (!TF2Econ_GetItemClassName(itemIndex, classname, sizeof(classname))) return INVALID_ENT_REFERENCE;
 	if (StrContains(classname, "tf_weapon_")!=0 && !StrEqual(classname,"tf_wearable") && !StrEqual(classname,"saxxy")) return INVALID_ENT_REFERENCE; //start with
-	if (!TF2Econ_TranslateWeaponEntForClass(classname, sizeof(classname), playerClass)) return INVALID_ENT_REFERENCE;
+//	if (!TF2Econ_TranslateWeaponEntForClass(classname, sizeof(classname), playerClass)) return INVALID_ENT_REFERENCE;
+	TF2Econ_TranslateWeaponEntForClass(classname, sizeof(classname), playerClass);
 	
 	tf2WeaponSlot weaponSlot = _CheckWeaponSlot( itemIndex, playerClass );
-	if (weaponSlot == TF2WeaponSlot_Unknown) return INVALID_ENT_REFERENCE; // can not assign a weapon slot
+	if (weaponSlot == TF2WeaponSlot_Unknown) { 
+		PrintToServer("Failed to give %i: Weapon slot unknown", itemIndex);
+		return INVALID_ENT_REFERENCE; // can not assign a weapon slot
+	}
 	
 	Handle newItem = TF2Items_CreateItem(OVERRIDE_ALL);
 	int Flags = 0;
@@ -463,6 +469,7 @@ int _GiveWeapon(int client, int itemIndex) {
 	Flags |= OVERRIDE_ITEM_QUALITY;
 	
 	Flags |= PRESERVE_ATTRIBUTES;
+	Flags |= FORCE_GENERATION;
 	TF2Items_SetFlags(newItem, Flags);
 	
 	TF2Items_SetClassname(newItem, classname);
