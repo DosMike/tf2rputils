@@ -23,6 +23,7 @@
 #include <tf2>
 #include <tf2_stocks>
 #include <tf2items>
+#include <tf2utils>
 #include <tf2attributes>
 #include <tf_econ_data>
 #include "tf2hudmsg.inc"
@@ -71,7 +72,7 @@ public Plugin myinfo = {
 	name = "[TF2] RP Utils",
 	author = "reBane",
 	description = "Library providing TF2 functions for my own (in)sanity",
-	version = "21w29a",
+	version = "21w29b",
 	url = "N/A"
 }
 
@@ -116,14 +117,14 @@ public void OnPluginStart() {
 	RegConsoleCmd("sm_dropit",     commandDropWeapon, "Drop the weapon you're currently holding");
 	RegConsoleCmd("sm_hands",      commandHolsterWeapon, "Put your weapons away and show hands");
 	RegConsoleCmd("sm_holster",    commandHolsterWeapon, "Put your weapons away and show hands");
-	RegAdminCmd("sm_spawnweapon",  commandCreateDroppedWeapon, ADMFLAG_CHEATS, "Create a weapon and drop it in the world - Only supports normal rarity items");
-	RegAdminCmd("sm_spawngun",     commandCreateDroppedWeapon, ADMFLAG_CHEATS, "Create a weapon and drop it in the world - Only supports normal rarity items");
-	RegAdminCmd("sm_resupply",     commandRegenerateSelf, ADMFLAG_CHEATS, "<#userid|name> - Regenerate yourself as if you used a resupply locker");
+	RegAdminCmd("sm_spawnweapon",  commandCreateDroppedWeapon, ADMFLAG_GENERIC, "Create a weapon and drop it in the world - Only supports normal rarity items");
+	RegAdminCmd("sm_spawngun",     commandCreateDroppedWeapon, ADMFLAG_GENERIC, "Create a weapon and drop it in the world - Only supports normal rarity items");
+	RegAdminCmd("sm_resupply",     commandRegenerateSelf, ADMFLAG_GENERIC, "<#userid|name> - Regenerate yourself as if you used a resupply locker");
 	//were originally placed in roleplay
-	RegAdminCmd("sm_give",         commandGiveWeapon, ADMFLAG_CHEATS, "<#userid|name> <weapon> - Weapon is the item index or classname, tf_weapon_ is optional");
-	RegAdminCmd("sm_fakegive",     commandGiveWeapon, ADMFLAG_CHEATS, "<#userid|name> <weapon> - Pretends to give a weapon");
-	RegAdminCmd("sm_god",          commandGod, ADMFLAG_ROOT, "<#userid|name> <1/0> - Enables or disables god mode on a player");
-	RegAdminCmd("sm_hp",           commandHp, ADMFLAG_ROOT, "<#userid|name> <health|'RESET'> ['MAX'|'FIX'] - Sets health of a player, FIX will prevent overheal decay");
+	RegAdminCmd("sm_give",         commandGiveWeapon, ADMFLAG_GENERIC, "<#userid|name> <weapon> - Weapon is the item index or classname, tf_weapon_ is optional");
+	RegAdminCmd("sm_fakegive",     commandGiveWeapon, ADMFLAG_GENERIC, "<#userid|name> <weapon> - Pretends to give a weapon");
+	RegAdminCmd("sm_god",          commandGod, ADMFLAG_GENERIC, "<#userid|name> <1/0> - Enables or disables god mode on a player");
+	RegAdminCmd("sm_hp",           commandHp, ADMFLAG_GENERIC, "<#userid|name> <health|'RESET'> ['MAX'|'FIX'] - Sets health of a player, FIX will prevent overheal decay");
 	
 	HookEvent("player_death", Event_ClientDeathPost);
 	HookEvent("post_inventory_application", Event_ClientInventoryRegeneratePost);

@@ -46,7 +46,7 @@ int Impl_TF2rpu_GiveWeapon(int client, const char[] classname) {
 	return Impl_TF2rpu_GiveWeaponEx(client, weaponDefinition);
 }
 int Impl_TF2rpu_GiveWeaponEx(int client, int weaponDefinitionIndex, bool switchTo=true) {
-	int weapon = _GiveWeapon(client, weaponDefinitionIndex);
+	int weapon = _GiveWeapon(client, weaponDefinitionIndex, true);
 	if (Entity_IsValid(weapon)) {
 		SetEntProp(weapon, Prop_Send, PROP_ACCOUNTID, GetSteamAccountID(client));
 //		Weapon_SetOwner(weapon, client);
@@ -379,8 +379,8 @@ int Impl_TF2rpu_SpawnWeaponAt(int client, int weaponDefinitionIndex) {
 	Format(fullpath, sizeof(fullpath), "models/weapons/c_models/c_%s/c_%s.mdl", classname[10], classname[10]); //trim 10 chars away of class name
 	if (!IsModelPrecached(fullpath)) return -1; //guessing the model path failed / should not require caching
 	//fetch ammo
-	clip = Impl_TF2rpu_GetMaxAmmo(classname);
-	if (Impl_TF2rpu_HasAmmo(classname)) { ammo=clip;clip=0; }
+	ammo = Impl_TF2rpu_GetMaxAmmo(classname);
+	clip = Impl_TF2rpu_HasAmmo(classname) ? 0 : -1; //-1 is required since latest patch as flag to use/display ammo as clip?
 	//where to spawn the weapon
 	GetClientEyePosition(client, origin);
 	GetClientEyeAngles(client, angles);
@@ -437,7 +437,7 @@ tf2WeaponSlot _CheckWeaponSlot( int itemIndex, TFClassType class = TFClass_Unkno
 }
 
 // replacement for TF2Items_GiveWeapons TF2Items_GiveWeapon
-int _GiveWeapon(int client, int itemIndex) {
+int _GiveWeapon(int client, int itemIndex, bool giveAmmo=false) {
 	//based on https://forums.alliedmods.net/showthread.php?p=1353985
 	
 //	if (!TF2Econ_IsValidItemDefinition(itemIndex)) return INVALID_ENT_REFERENCE;
@@ -450,8 +450,7 @@ int _GiveWeapon(int client, int itemIndex) {
 	TF2Econ_TranslateWeaponEntForClass(classname, sizeof(classname), playerClass);
 	
 	tf2WeaponSlot weaponSlot = _CheckWeaponSlot( itemIndex, playerClass );
-	if (weaponSlot == TF2WeaponSlot_Unknown) { 
-		PrintToServer("Failed to give %i: Weapon slot unknown", itemIndex);
+	if (weaponSlot == TF2WeaponSlot_Unknown) {
 		return INVALID_ENT_REFERENCE; // can not assign a weapon slot
 	}
 	
@@ -478,6 +477,10 @@ int _GiveWeapon(int client, int itemIndex) {
 	int entity = TF2Items_GiveNamedItem(client, newItem);
 	delete newItem;
 	if (IsValidEntity(entity)) {
+		if (giveAmmo) {
+			Weapon_SetPrimaryClip(entity, TF2Util_GetWeaponMaxClip(entity));
+			Client_SetWeaponPlayerAmmoEx(client, entity, Impl_TF2rpu_GetMaxAmmo(classname));
+		}
 		EquipPlayerWeapon(client, entity);
 	}
 	return entity;

@@ -43,6 +43,20 @@ static int _giveByIndex(int client, int weaponIndex, char[] weapon, int namesize
 		Entity_GetClassName(entity, weapon, namesize);
 	return entity;
 }
+static void _refillWeaponAmmo(int client, int weapon) {
+	if (weapon == INVALID_ENT_REFERENCE) return;
+	Weapon_SetPrimaryClip(weapon, TF2Util_GetWeaponMaxClip(weapon));
+	if (Impl_TF2rpu_HasAmmoEntity(weapon)) {
+		char classname[64];
+		GetEntityClassname(weapon, classname, sizeof(classname));
+		Client_SetWeaponPlayerAmmoEx(client, weapon, Impl_TF2rpu_GetMaxAmmo(classname));
+	}
+}
+static void _refillAllAmmo(int client) {
+	_refillWeaponAmmo(client, GetPlayerWeaponSlot(client, TF2WeaponSlot_Main));
+	_refillWeaponAmmo(client, GetPlayerWeaponSlot(client, TF2WeaponSlot_Side));
+	SetEntData(client, FindDataMapOffs(client, "m_iAmmo") + (3 * 4), 200, 4); //refill metal
+}
 public Action commandGiveWeapon(int client, int args) {
 	char command[32], arg1[MAX_NAME_LENGTH], weapon[64];
 	GetCmdArg(0, command, sizeof(command));
@@ -60,16 +74,22 @@ public Action commandGiveWeapon(int client, int args) {
 	int targets[MAXPLAYERS + 1], amount = ProcessTargetString(arg1, client, targets, sizeof(targets), COMMAND_FILTER_ALIVE, arg1, sizeof(arg1), tn_is_ml);
 	if(amount) {
 		if(StrEqual(command, "sm_give")) {
-			for(int i; i < amount; i++) {
-				if (weaponAsIndex < 0) {
-					if (_giveByName(targets[i], weapon, sizeof(weapon)) == INVALID_ENT_REFERENCE) {
-						ReplyToCommand(client, "%t", "invalid weapon classname", weapon);
-						return Plugin_Handled;
-					}
-				} else {
-					if (_giveByIndex(client, weaponAsIndex, weapon, sizeof(weapon)) == INVALID_ENT_REFERENCE) {
-						ReplyToCommand(client, "%t", "invalid weapon definition index", weapon);
-						return Plugin_Handled;
+			if (StrEqual(weapon, "ammo")) {
+				for(int i; i < amount; i++) {
+					_refillAllAmmo(targets[i]);
+				}
+			} else {
+				for(int i; i < amount; i++) {
+					if (weaponAsIndex < 0) {
+						if (_giveByName(targets[i], weapon, sizeof(weapon)) == INVALID_ENT_REFERENCE) {
+							ReplyToCommand(client, "%t", "invalid weapon classname", weapon);
+							return Plugin_Handled;
+						}
+					} else {
+						if (_giveByIndex(client, weaponAsIndex, weapon, sizeof(weapon)) == INVALID_ENT_REFERENCE) {
+							ReplyToCommand(client, "%t", "invalid weapon definition index", weapon);
+							return Plugin_Handled;
+						}
 					}
 				}
 			}
