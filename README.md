@@ -45,14 +45,13 @@ ConVars
 Requirements
 -----
 
-- smlib
-- morecolors.inc
-- tf2items
-- tf2attributes
-- tf_econ_data
-- tf2utils
-
-*TODO: link deps*
+- [smlib](https://github.com/bcserv/smlib)
+- [morecolors.inc](https://github.com/DoctorMcKay/sourcemod-plugins/)
+- [tf2items](https://forums.alliedmods.net/showthread.php?t=115100)
+- [tf2attributes](https://forums.alliedmods.net/showthread.php?t=210221)
+- [tf_econ_data](https://forums.alliedmods.net/showthread.php?t=315011)
+- [tf2utils](https://github.com/nosoop/SM-TFUtils)
+- [tf2hudmsg](https://github.com/DosMike/tf2hudmsg)
 
 Credits
 -----
